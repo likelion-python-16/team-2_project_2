@@ -30,6 +30,10 @@ jobs:
       # EC2에 파일 업로드
       - name: Upload Files to EC2
         run: |
+          # .env 파일 생성 (Secrets에 등록된 내용 사용)
+          # GitHub Actions 환경에 .env 파일이 없기 때문에 Secrets 내용을 파일로 만듭니다.
+          echo "${{ secrets.ENV_CONTENT }}" > .env
+
           # scp 명령어로 필요한 파일들을 EC2 서버에 전송합니다.
           # -i 옵션이 필요 없도록 ssh-agent를 사용합니다.
           # team-2_project_2가 정확한 프로젝트 이름입니다.

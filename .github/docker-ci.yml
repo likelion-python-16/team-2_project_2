@@ -1,0 +1,26 @@
+name: Django CI with Docker
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: |
+        docker build -t django-test-image .
+
+    - name: Run tests inside Docker container
+      run: |
+        docker run --rm django-test-image python manage.py test

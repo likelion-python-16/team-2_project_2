@@ -7,31 +7,45 @@ on:
 
 jobs:
   deploy:
+    name: Deploy
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # GitHub 리포지토리 체크아웃
+      - name: Checkout Repository
+        uses: actions/checkout@v2
 
-    - name: Set up SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+      # SSH 개인 키 설정
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-    - name: Upload .env file to EC2
-      run: |
-        echo "${{ secrets.ENV_CONTENT }}" > .env
-        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deploy_test/docker_project2/.env
+      # StrictHostKeyChecking 비활성화
+      - name: Disable StrictHostKeyChecking
+        run: |
+          mkdir -p ~/.ssh
+          echo "Host 3.38.192.206" >> ~/.ssh/config
+          echo "    StrictHostKeyChecking no" >> ~/.ssh/config
 
-    - name: Deploy to EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-        cd ~/deploy_test/docker_project2
-        git pull origin main
-        docker build -t django-docker-app .
-        docker stop django-app || true
-        docker rm django-app || true
-        docker run -d -p 8000:8000 --env-file .env --name django-app django-docker-app
-        EOF
+      # EC2에 파일 업로드
+      - name: Upload Files to EC2
+        run: |
+          # scp 명령어로 필요한 파일들을 EC2 서버에 전송합니다.
+          # -i 옵션이 필요 없도록 ssh-agent를 사용합니다.
+          # team-2_project_2가 정확한 프로젝트 이름입니다.
+          scp .env Dockerfile docker-compose.yml ubuntu@3.38.192.206:~/deploy_test/team-2_project_2/
+
+      # EC2에서 도커 컴포즈 실행
+      - name: Run Docker Compose on EC2
+        run: |
+          # SSH 접속 후, EC2 서버에서 명령어를 실행합니다.
+          # 세미콜론(;)을 사용하여 여러 명령어를 순차적으로 실행합니다.
+          ssh ubuntu@3.38.192.206 " \
+            cd ~/deploy_test/team-2_project_2/; \
+            # docker-compose가 설치되어 있지 않다면 설치합니다.
+            if ! [ -x "$(command -v docker-compose)" ]; then \
+              sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; \
+              sudo chmod +x /usr/local/bin/docker-compose; \
+            fi; \
+            # 컨테이너를 빌드하고 실행합니다.
+            sudo docker-compose up -d --build \

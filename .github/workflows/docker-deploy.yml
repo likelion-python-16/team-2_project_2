@@ -1,0 +1,37 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Upload .env file to EC2
+      run: |
+        echo "${{ secrets.ENV_CONTENT }}" > .env
+        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deploy_test/docker_project2/.env
+
+    - name: Deploy to EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        cd ~/deploy_test/docker_project2
+        git pull origin main
+        docker build -t django-docker-app .
+        docker stop django-app || true
+        docker rm django-app || true
+        docker run -d -p 8000:8000 --env-file .env --name django-app django-docker-app
+        EOF

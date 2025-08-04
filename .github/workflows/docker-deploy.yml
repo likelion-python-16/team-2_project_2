@@ -27,29 +27,27 @@ jobs:
           echo "Host 3.38.192.206" >> ~/.ssh/config
           echo "    StrictHostKeyChecking no" >> ~/.ssh/config
 
-      # EC2에 파일 업로드
-      - name: Upload Files to EC2
+      # EC2에 배포
+      - name: Deploy to EC2
         run: |
-          # .env 파일 생성 (Secrets에 등록된 내용 사용)
-          # GitHub Actions 환경에 .env 파일이 없기 때문에 Secrets 내용을 파일로 만듭니다.
-          echo "${{ secrets.ENV_CONTENT }}" > .env
-
-          # scp 명령어로 필요한 파일들을 EC2 서버에 전송합니다.
-          # -i 옵션이 필요 없도록 ssh-agent를 사용합니다.
-          # team-2_project_2가 정확한 프로젝트 이름입니다.
-          scp .env Dockerfile docker-compose.yml ubuntu@3.38.192.206:~/deploy_test/team-2_project_2/
-
-      # EC2에서 도커 컴포즈 실행
-      - name: Run Docker Compose on EC2
-        run: |
-          # SSH 접속 후, EC2 서버에서 명령어를 실행합니다.
-          # 세미콜론(;)을 사용하여 여러 명령어를 순차적으로 실행합니다.
+          # SSH 접속 후, EC2 서버에서 명령어를 순차적으로 실행합니다.
+          # 모든 파일을 scp로 업로드하는 대신, EC2에서 직접 git pull을 수행합니다.
           ssh ubuntu@3.38.192.206 " \
             cd ~/deploy_test/team-2_project_2/; \
+
+            # .env 파일 생성 (Secrets에 등록된 내용 사용)
+            # GitHub Actions 환경에 .env 파일이 없기 때문에 Secrets 내용을 파일로 만듭니다.
+            echo '${{ secrets.ENV_CONTENT }}' > .env; \
+
+            # git pull을 통해 최신 코드 가져오기
+            git pull origin main; \
+
             # docker-compose가 설치되어 있지 않다면 설치합니다.
             if ! [ -x "$(command -v docker-compose)" ]; then \
               sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; \
               sudo chmod +x /usr/local/bin/docker-compose; \
             fi; \
+
             # 컨테이너를 빌드하고 실행합니다.
             sudo docker-compose up -d --build \
+          "

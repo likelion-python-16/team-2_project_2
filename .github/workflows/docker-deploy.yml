@@ -28,7 +28,7 @@ jobs:
     - name: Deploy to EC2
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-        cd ~/deploy_test/docker_project2
+        cd ~/deploy_test/team-2_project_2
         git pull origin main
         docker build -t django-docker-app .
         docker stop django-app || true

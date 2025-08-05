@@ -2,9 +2,9 @@ name: Django CI with Docker
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "develop" ]
 
 jobs:
   build-and-test:
